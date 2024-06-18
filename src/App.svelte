@@ -1,65 +1,63 @@
 <script>
-  import Example from "$components/Example.svelte";
-  import data from "$data/data.js";
-  console.log(data);
+    import world from "$data/world-110m.json";
+    import * as topojson from "topojson-client";
+    import { geoOrthographic, geoPath } from "d3-geo";
+    
+    import Glow from "$components/Glow.svelte";
+
+  console.log({world})
+
+  let countries = topojson.feature(world, 
+    world.objects.countries).features
+
+  let borders = topojson.mesh(world,
+    world.objects.countries, (a,b) => a !== b);
+
+
+
+    
+
+    let width = 400;
+    $: height = width;
+
+    $: projection = geoOrthographic()
+    .scale(width/2)
+    .rotate([0, 0])
+    .translate([width/2, height/2])
+
+    $: path = geoPath(projection);
+
 </script>
 
-<main>
-  <h1>Let's make a chart 😎</h1>
-  <h2>
-    Get started by deleting all of the contents in <pre>App.svelte</pre>
-    🗑
-  </h2>
-  <Example />
-  <footer>
-    For help, <a
-      href="https://twitter.com/CL_Rothschild"
-      target="_blank"
-      rel="noopener noreferrer">DM Connor on Twitter ✉️</a
-    >
-  </footer>
-</main>
+<!-- {#each countries as country }
+<p> {country.geometry.coordinates} </p>
+{/each} -->
+
+<div class="chart-container" bind:clientWidth={width}>
+<svg width={width} height={height}>
+  <Glow/>
+  <circle r={width / 2} cx={width / 2} cy={height / 2} fill="#1c1c1c" filter="url(#glow)"/>
+
+{#each countries as country }
+<path d={path(country)} fill="#26362E" stroke="none"/>
+{/each}
+
+  <path d={path(borders)} fill="none" stroke="black"/>
+</svg>
+</div>
 
 <style>
-  main {
-    text-align: center;
+  :global(body){
+    background: rgb(40,40,40);
+  }
+  
+  .chart-container {
+    max-width: 468px;
     margin: 0 auto;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    min-height: 100vh;
-    background: #f0f0f0;
   }
 
-  h1 {
-    font-size: 3rem;
-    margin-bottom: 1rem;
-    font-weight: 700;
+  svg{
+    overflow: visible;
   }
 
-  h2 {
-    font-size: 1.5rem;
-    color: #333;
-    margin-bottom: 2rem;
-    line-height: 1.5;
-  }
-
-  pre {
-    padding: 1px 6px;
-    display: inline;
-    margin: 0;
-    background: #ffb7a0;
-    border-radius: 3px;
-  }
-
-  a {
-    color: #ff3e00;
-    text-decoration: inherit;
-  }
-
-  footer {
-    font-size: 1rem;
-    color: #333;
-  }
 </style>
