@@ -1,63 +1,118 @@
 <script>
-    import world from "$data/world-110m.json";
-    import * as topojson from "topojson-client";
-    import { geoOrthographic, geoPath } from "d3-geo";
-    
-    import Glow from "$components/Glow.svelte";
+  import world from "$data/world-110m.json";
+  import * as topojson from "topojson-client";
+  import { geoOrthographic, geoPath } from "d3-geo";
+  import { scaleLinear } from "d3-scale";
+  import { max } from "d3-array";
+  import { timer } from "d3-timer";
 
-  console.log({world})
+  import Glow from "$components/Glow.svelte";
+  import data from "$data/data.json";
+  import { onMount } from "svelte";
+  import { drag } from "d3-drag";
+  import { select } from "d3-selection";
+  import { spring } from "svelte/motion";
 
-  let countries = topojson.feature(world, 
-    world.objects.countries).features
+  console.log({ world });
 
-  let borders = topojson.mesh(world,
-    world.objects.countries, (a,b) => a !== b);
+  let countries = topojson.feature(world, world.objects.countries).features;
 
+  let borders = topojson.mesh(
+    world,
+    world.objects.countries,
+    (a, b) => a !== b,
+  );
 
+  //Restructure countries array to include pop data
+  countries.forEach((country) => {
+    const metadata = data?.find((d) => d.id === country.id);
+    if (metadata) {
+      country.population = metadata.population;
+      country.country = metadata.country;
+    }
+  });
 
-    
+  let width = 400;
+  $: height = width;
 
-    let width = 400;
-    $: height = width;
+  $: projection = geoOrthographic()
+    .scale(width / 2)
+    .rotate([$xRotation, $yRotation, 0])
+    .translate([width / 2, height / 2]);
 
-    $: projection = geoOrthographic()
-    .scale(width/2)
-    .rotate([0, 0])
-    .translate([width/2, height/2])
+  $: path = geoPath(projection);
 
-    $: path = geoPath(projection);
+  const colorScale = scaleLinear()
+    .domain([0, max(data, (d) => d.population)])
+    .range(["#26362e", "#0DCC6C"]);
 
+  let xRotation = spring(0, {stiffness: 0.08, damping: 0.4});
+  let yRotation = spring(0, {stiffness: 0.17, damping: 0.7});
+  let degreesPerFrame = 0.5;
+
+  const t = timer((elapsed) => {
+    if(dragging) return;
+    $xRotation += degreesPerFrame;
+    // if (elapse > 200) t.stop();
+  }, 0);
+
+  let globe;
+  let dragging = false;
+
+  onMount(() => {
+    const element = select(globe);
+    element.call(
+      drag().on("drag", (event) => {
+        console.log("I am being dragged");
+        $xRotation = $xRotation + event.dx * .5;
+        $yRotation = $yRotation - event.dy * .5;
+        dragging = true;
+      })
+      .on("end", () => {
+        dragging = false
+      })
+    );
+  });
 </script>
 
-<!-- {#each countries as country }
-<p> {country.geometry.coordinates} </p>
-{/each} -->
-
 <div class="chart-container" bind:clientWidth={width}>
-<svg width={width} height={height}>
-  <Glow/>
-  <circle r={width / 2} cx={width / 2} cy={height / 2} fill="#1c1c1c" filter="url(#glow)"/>
+  <svg {width} {height} bind:this={globe} class:dragging>
+    <Glow />
+    <circle
+      r={width / 2}
+      cx={width / 2}
+      cy={height / 2}
+      fill="#1c1c1c"
+      filter="url(#glow)"
+    />
 
-{#each countries as country }
-<path d={path(country)} fill="#26362E" stroke="none"/>
-{/each}
+    {#each countries as country}
+      <path
+        d={path(country)}
+        fill={colorScale(country?.population || 0)}
+        stroke="none"
+      />
+    {/each}
 
-  <path d={path(borders)} fill="none" stroke="black"/>
-</svg>
+    <path d={path(borders)} fill="none" stroke="black" />
+  </svg>
 </div>
 
 <style>
-  :global(body){
-    background: rgb(40,40,40);
+  :global(body) {
+    background: rgb(40, 40, 40);
   }
-  
+
   .chart-container {
     max-width: 468px;
     margin: 0 auto;
   }
 
-  svg{
+  svg {
     overflow: visible;
   }
 
+  .dragging{
+    cursor: grabbing
+  }
 </style>
