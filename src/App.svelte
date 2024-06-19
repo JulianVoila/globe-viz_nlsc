@@ -108,6 +108,7 @@
     />
 
     {#each countries.sort((a, b) => b.population - a.population) as country}
+    <!-- console.log({country}); -->
       <!-- svelte-ignore a11y-click-events-have-key-events -->
       <!-- svelte-ignore a11y-no-noninteractive-tabindex -->
       <path
