@@ -1,19 +1,22 @@
 <script>
   import world from "$data/world-110m.json";
   import * as topojson from "topojson-client";
-  import { geoOrthographic, geoPath } from "d3-geo";
+  import { geoOrthographic, geoPath, geoCentroid } from "d3-geo";
   import { scaleLinear } from "d3-scale";
-  import { max } from "d3-array";
+  import { max, sort } from "d3-array";
   import { timer } from "d3-timer";
 
   import Glow from "$components/Glow.svelte";
+  import Tooltip from "$components/Tooltip.svelte";
+
   import data from "$data/data.json";
   import { onMount } from "svelte";
   import { drag } from "d3-drag";
   import { select } from "d3-selection";
   import { spring } from "svelte/motion";
+  import { draw } from "svelte/transition";
 
-  console.log({ world });
+  // console.log({ world });
 
   let countries = topojson.feature(world, world.objects.countries).features;
 
@@ -46,12 +49,12 @@
     .domain([0, max(data, (d) => d.population)])
     .range(["#26362e", "#0DCC6C"]);
 
-  let xRotation = spring(0, {stiffness: 0.08, damping: 0.4});
-  let yRotation = spring(0, {stiffness: 0.17, damping: 0.7});
+  let xRotation = spring(0, { stiffness: 0.08, damping: 0.4 });
+  let yRotation = spring(0, { stiffness: 0.17, damping: 0.7 });
   let degreesPerFrame = 0.5;
 
   const t = timer((elapsed) => {
-    if(dragging) return;
+    if (dragging || tooltipData) return;
     $xRotation += degreesPerFrame;
     // if (elapse > 200) t.stop();
   }, 0);
@@ -62,40 +65,80 @@
   onMount(() => {
     const element = select(globe);
     element.call(
-      drag().on("drag", (event) => {
-        console.log("I am being dragged");
-        $xRotation = $xRotation + event.dx * .5;
-        $yRotation = $yRotation - event.dy * .5;
-        dragging = true;
-      })
-      .on("end", () => {
-        dragging = false
-      })
+      drag()
+        .on("drag", (event) => {
+          console.log("I am being dragged");
+          $xRotation = $xRotation + event.dx * 0.5;
+          $yRotation = $yRotation - event.dy * 0.5;
+          dragging = true;
+        })
+        .on("end", () => {
+          dragging = false;
+        }),
     );
   });
+
+  let tooltipData;
+
+  $: if (tooltipData) {
+    const center = geoCentroid(tooltipData);
+    $xRotation = -center[0];
+    $yRotation = -center[1];
+    // projection.rotate([-center[0], -center[1]])
+  }
 </script>
 
 <div class="chart-container" bind:clientWidth={width}>
   <svg {width} {height} bind:this={globe} class:dragging>
     <Glow />
+
+    <!-- svelte-ignore a11y-click-events-have-key-events -->
     <circle
       r={width / 2}
       cx={width / 2}
       cy={height / 2}
       fill="#1c1c1c"
       filter="url(#glow)"
+      on:click={() => {
+        tooltipData = null;
+      }}
+      on:focus={() => {
+        tooltipData = null;
+      }}
     />
 
-    {#each countries as country}
+    {#each countries.sort((a, b) => b.population - a.population) as country}
+      <!-- svelte-ignore a11y-click-events-have-key-events -->
+      <!-- svelte-ignore a11y-no-noninteractive-tabindex -->
       <path
         d={path(country)}
         fill={colorScale(country?.population || 0)}
         stroke="none"
+        on:click={() => {
+          tooltipData = country;
+        }}
+        on:focus={() => {
+          tooltipData = country;
+        }}
+        tabindex="0"
       />
     {/each}
 
     <path d={path(borders)} fill="none" stroke="black" />
+
+    {#if tooltipData}
+      {#key tooltipData.id}
+        <path
+          d={path(tooltipData)}
+          fill="transparent"
+          stroke="white"
+          stroke-width="2"
+          in:draw
+        />
+      {/key}
+    {/if}
   </svg>
+  <Tooltip data={tooltipData} />
 </div>
 
 <style>
@@ -112,7 +155,15 @@
     overflow: visible;
   }
 
-  .dragging{
-    cursor: grabbing
+  .dragging {
+    cursor: grabbing;
+  }
+
+  path {
+    cursor: pointer;
+  }
+
+  path:focus{
+    outline: none;
   }
 </style>
