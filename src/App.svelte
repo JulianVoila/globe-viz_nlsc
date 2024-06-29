@@ -8,6 +8,7 @@
 
   import Glow from "$components/Glow.svelte";
   import Tooltip from "$components/Tooltip.svelte";
+  import Legend from "$components/Legend.svelte";
 
   import data from "$data/data.json";
   import { onMount } from "svelte";
@@ -15,6 +16,7 @@
   import { select } from "d3-selection";
   import { spring } from "svelte/motion";
   import { draw } from "svelte/transition";
+    
 
   // console.log({ world });
 
@@ -89,7 +91,10 @@
 </script>
 
 <div class="chart-container" bind:clientWidth={width}>
+  <h1>The World at a Glance</h1>
+  <h2>Population by Country, 2021</h2>
   <svg {width} {height} bind:this={globe} class:dragging>
+
     <Glow />
 
     <!-- svelte-ignore a11y-click-events-have-key-events -->
@@ -140,6 +145,7 @@
     {/if}
   </svg>
   <Tooltip data={tooltipData} />
+  <Legend {colorScale} data={tooltipData}/>
 </div>
 
 <style>
@@ -158,6 +164,7 @@
 
   .dragging {
     cursor: grabbing;
+    
   }
 
   path {
@@ -167,4 +174,31 @@
   path:focus{
     outline: none;
   }
+
+  path:focus{
+    outline: none;
+  }
+
+  circle:focus{
+    outline: none;
+  }
+
+  h1, h2{
+    color: white;
+    text-align: center;
+  }
+
+  h1{
+    font-size: 1.75rem;
+    font-weight: 800;
+    margin-bottom: 0.4rem;
+    margin-top: 0.4rem;
+  }
+
+  h2{
+    font-size: 1.25rem;
+    font-weight: 200;
+    margin-bottom: 1.5rem;
+  }
+
 </style>
